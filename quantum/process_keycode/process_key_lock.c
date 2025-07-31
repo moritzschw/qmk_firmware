@@ -61,6 +61,15 @@ void cancel_key_lock(void) {
     UNSET_KEY_STATE(0x0);
 }
 
+__attribute__((weak)) void key_lock_changed_user(bool on) {}
+__attribute__((weak)) void key_lock_changed_kb(bool on) {
+    key_lock_changed_user(on);
+}
+__attribute__((weak)) void key_lock_watching_changed_user(bool on) {}
+__attribute__((weak)) void key_lock_watching_changed_kb(bool on) {
+    key_lock_watching_changed_user(on);
+}
+
 bool process_key_lock(uint16_t *keycode, keyrecord_t *record) {
     // We start by categorizing the keypress event. In the event of a down
     // event, there are several possibilities:
@@ -97,12 +106,14 @@ bool process_key_lock(uint16_t *keycode, keyrecord_t *record) {
         // Non-standard keycode, reset and return
         if (!(IS_STANDARD_KEYCODE(translated_keycode) || translated_keycode == QK_LOCK)) {
             watching = false;
+            key_lock_watching_changed_kb(watching);
             return true;
         }
 
         // If we're already watching, turn off the watch.
         if (translated_keycode == QK_LOCK) {
             watching = !watching;
+            key_lock_watching_changed_kb(watching);
             return false;
         }
 
@@ -118,6 +129,8 @@ bool process_key_lock(uint16_t *keycode, keyrecord_t *record) {
                 // translated a OSM back to the original keycode.
                 *keycode = translated_keycode;
                 // Let the standard keymap send the keycode down event. The up event will be masked.
+                key_lock_changed_kb(true);
+                key_lock_watching_changed_kb(watching);
                 return true;
             }
 
@@ -125,6 +138,8 @@ bool process_key_lock(uint16_t *keycode, keyrecord_t *record) {
                 UNSET_KEY_STATE(translated_keycode);
                 // The key is already held, stop this process. The up event will be sent when the user
                 // releases the key.
+                key_lock_changed_kb(false);
+                key_lock_watching_changed_kb(watching);
                 return false;
             }
         }
